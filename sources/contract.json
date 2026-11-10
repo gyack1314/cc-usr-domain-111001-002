@@ -1,0 +1,9 @@
+{
+  "GET /index": "返回资料页地址",
+  "page_fields": "data-record-id站内身份，data-kind可信度，data-revision来源修订",
+  "phases": [
+    "base",
+    "withdrawn"
+  ],
+  "decisions": "来源kind与来源id用冒号连接形成引用"
+}

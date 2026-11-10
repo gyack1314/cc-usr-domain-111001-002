@@ -1,0 +1,19 @@
+[
+  {
+    "decision_id": "d1",
+    "operation": "same",
+    "left": "maker:a",
+    "right": "brief:c"
+  },
+  {
+    "decision_id": "d2",
+    "operation": "different",
+    "left": "maker:a",
+    "right": "maker:b"
+  },
+  {
+    "decision_id": "d3",
+    "operation": "revoke",
+    "target": "d1"
+  }
+]
