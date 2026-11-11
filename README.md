@@ -40,3 +40,37 @@ docker run --rm --network none equipment-identity-source
 ```
 
 来源的HTTP异常是合成协议行为，便于资料接入端开发和诊断。样本可扩展；业务数据、原始HTML以及接口响应不应被当作真实部署凭据或真实业务事实。
+
+## 资料接入端 equipment_identity
+
+`equipment_identity/` 是采集与实体归并模块（仅标准库），完成「采集 → 规范化候选 → 人工决定 → 实体导出 → 证据链查询」全流程。核心原则：原始观察与人工决定只追加、不覆盖；实体、候选、合成参数等一切派生状态都是「原始记录 + 生效决定」的纯函数，可随时离线重算，且结果不依赖导入顺序。
+
+### 使用方式
+
+```sh
+python -m source_site --port 8090 &                      # 启动本地来源
+python -m equipment_identity --data data collect --source http://127.0.0.1:8090
+python -m equipment_identity --data data import-decisions sources/decisions.json
+python -m equipment_identity --data data status          # 记录/实体/候选/冲突总览
+python -m equipment_identity --data data export --out entities.json
+python -m equipment_identity --data data evidence E-xxx  # 实体证据链（每项参数的出处）
+python -m equipment_identity --data data evidence maker:a
+python -m equipment_identity --data data lineage E-xxx   # 拆分/归并沿革
+python -m equipment_identity --data data recompute       # 仅从原始记录重算，不请求网页
+```
+
+### 规则摘要
+
+- **采集**：每次抓取生成新观察版本（`observations.jsonl` + `raw/` 原文），永不覆盖；每个字段保留选择器与起止偏移，可回溯原始页面确切位置。撤稿（410）也留下观察，只撤掉对应证据。
+- **实体**：只能由「完全一致的非空厂商编码 + 规范化型号」或生效的人工 same 决定支持；名称相似只产生候选。全角型号、连字符变体等做机械规范化（NFKC、大写、统一连字符），旧商标不做语义猜测。
+- **决定**：`decision_id` 幂等，重复导入不重复执行；同号不同内容拒绝覆盖。`revoke` 撤销先前确认；目标未到时作为待生效撤销接受，保证顺序无关。`different` 是不可绕过的约束：合并证据链与互斥决定冲突时整个组件待处理并解释，不按导入顺序选边。
+- **合成**：按字段执行，厂商页 > 简报 > 转载；同级取较新 data-revision；同级同修订值冲突保留并列值。保留值与被覆盖值都带出处。
+- **沿革**：实体标识由成员集合内容寻址，成员不变则标识不变；拆分/归并/出现/消失写入 `lineage.jsonl`，已导出标识可查询。
+
+### 回归检查
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+`tests/test_pipeline.py` 覆盖：同名异厂保持分开、无厂商转载停留候选区、别名撤销后恢复、重复决定幂等、全部导入排列结果一致、互斥冲突整体待处理、撤稿只撤对应证据并在恢复后还原、同级同修订并列值、字段位置可回溯。
